@@ -1,0 +1,1023 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Multitasking — Padrão de Sidebars Acopladas</title>
+    <style>
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+      }
+      * {
+        margin: 0;
+      }
+      :root {
+        --accent: #3aa5a5;
+        --line: #d6d6d6;
+        --line-soft: #ececec;
+        --ink: #111;
+        --muted: #666;
+        --skel: #e9e9e9;
+        --menu-w: 52px;
+      }
+      html,
+      body {
+        height: 100%;
+      }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        color: var(--ink);
+        background: #f4f4f5;
+      }
+
+      /* ===================== APP SHELL (menu | conteúdo | workspace) ===================== */
+      .app {
+        display: flex;
+        min-height: 100dvh;
+      }
+
+      /* ---- Sidebar do menu (sidebar fixa: 52 / 280) ---- */
+      .menu {
+        position: relative;
+        z-index: 30;
+        flex: 0 0 var(--menu-w);
+        width: var(--menu-w);
+        min-height: 100dvh;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        padding: 12px 8px;
+        background: #fff;
+        border-right: 0.5px solid var(--line);
+        overflow: hidden;
+        transition: flex-basis 220ms cubic-bezier(0.4, 0, 0.2, 1), width 220ms cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      .menu-toggle {
+        flex: 0 0 auto;
+        width: 36px;
+        height: 36px;
+        display: grid;
+        place-items: center;
+        border: 0;
+        border-radius: 8px;
+        background: transparent;
+        color: var(--ink);
+        cursor: pointer;
+        margin-bottom: 10px;
+      }
+      .menu-toggle:hover {
+        background: #f1f1f1;
+      }
+      .menu-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        height: 40px;
+        padding: 0 8px;
+        border-radius: 8px;
+        color: #525252;
+        font-size: 14px;
+        font-weight: 500;
+        white-space: nowrap;
+        cursor: pointer;
+      }
+      .menu-item:hover,
+      .menu-item.is-active {
+        background: #f1f1f1;
+        color: var(--ink);
+      }
+      .menu-ico {
+        flex: 0 0 36px;
+        display: grid;
+        place-items: center;
+      }
+      .menu svg {
+        width: 20px;
+        height: 20px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      .menu-toggle svg {
+        width: 22px;
+        height: 22px;
+      }
+      .menu-label {
+        opacity: 0;
+        transition: opacity 140ms ease;
+      }
+      .menu.is-open .menu-label {
+        opacity: 1;
+      }
+
+      /* ---- Conteúdo principal ---- */
+      .content {
+        flex: 1 1 auto;
+        min-width: 0;
+        display: flex;
+        padding: 16px;
+        overflow: hidden;
+      }
+      .content-card {
+        flex: 1 1 auto;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+        height: 100%;
+        background: #fff;
+        border: 0.5px solid var(--line);
+        border-radius: 16px;
+        padding: 24px;
+        overflow: hidden;
+      }
+      .content-head {
+        flex: 0 0 auto;
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+        min-width: 0;
+      }
+      .content-head h1 {
+        font-size: 24px;
+        line-height: 1.2;
+        letter-spacing: -0.01em;
+      }
+      .content-head p {
+        margin-top: 6px;
+        max-width: 520px;
+        font-size: 14px;
+        color: var(--muted);
+        line-height: 1.45;
+      }
+      .btn {
+        flex: 0 0 auto;
+        border: 0.5px solid var(--line);
+        border-radius: 20px;
+        background: #fff;
+        color: var(--ink);
+        padding: 9px 16px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+      .btn:hover {
+        background: #f7f7f7;
+      }
+      .btn--primary {
+        background: #1a1a1a;
+        color: #fff;
+        border-color: #1a1a1a;
+      }
+      .skel-list {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .skel-row {
+        flex: 0 0 auto;
+        min-width: 0;
+        overflow: hidden;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 18px 16px;
+        border: 0.5px solid var(--line-soft);
+        border-radius: 12px;
+      }
+      .skel-main {
+        flex: 1 1 auto;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 9px;
+      }
+      .skel-meta {
+        flex: 0 1 auto;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 9px;
+      }
+      .bar {
+        height: 12px;
+        border-radius: 6px;
+        background: var(--skel);
+      }
+      .bar.t {
+        width: 100%;
+        max-width: 240px;
+        height: 14px;
+      }
+      .bar.s {
+        width: 100%;
+        max-width: 360px;
+      }
+      .bar.v {
+        width: 100%;
+        max-width: 110px;
+        height: 14px;
+      }
+      .bar.b {
+        width: 100%;
+        max-width: 64px;
+        height: 18px;
+        border-radius: 999px;
+      }
+      .skel-row:nth-child(odd) .bar.s {
+        max-width: 300px;
+      }
+      .skel-row:nth-child(3n) .bar.s {
+        max-width: 410px;
+      }
+      .skel-row:nth-child(3n) .bar.t {
+        max-width: 200px;
+      }
+
+      /* ===================== WORKSPACE (multitasking) ===================== */
+      .workspace {
+        position: relative;
+        flex: 0 0 0;
+        width: 0;
+        min-width: 0;
+        min-height: 100dvh;
+        background: #fff;
+        overflow: hidden;
+        transition: flex-basis 350ms cubic-bezier(0.4, 0, 0.2, 1), width 350ms cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      .app.ws-open .workspace {
+        width: var(--ws-w, 39vw);
+        flex-basis: var(--ws-w, 39vw);
+      }
+      /* durante o arraste: sem transição → segue o cursor */
+      .app.dragging .workspace {
+        transition: none !important;
+      }
+
+      .resize-handle {
+        position: absolute;
+        z-index: 20;
+        top: 0;
+        left: -5px;
+        width: 11px;
+        height: 100%;
+        border: 0;
+        padding: 0;
+        background: transparent;
+        cursor: ew-resize;
+      }
+      .resize-handle::before {
+        content: "";
+        position: absolute;
+        left: 5px;
+        top: 0;
+        width: 2px;
+        height: 100%;
+        background: transparent;
+        transition: background 0.15s ease;
+      }
+      .resize-handle:hover::before,
+      .app.dragging .resize-handle::before {
+        background: var(--accent);
+      }
+
+      .panel {
+        width: 100%;
+        height: 100dvh;
+        overflow: hidden;
+        display: grid;
+        grid-template-rows: auto 1fr;
+        grid-template-columns: 1fr;
+        border-left: 0.5px solid var(--line);
+        background: #fff;
+      }
+      /* lado a lado: duas colunas (primária | auxiliar) */
+      .panel.aux-open:not(.compact) {
+        grid-template-columns: minmax(320px, 1fr) minmax(320px, var(--edital-w, 1fr));
+      }
+
+      /* ---- Header ---- */
+      .head {
+        position: relative;
+        grid-column: 1;
+        grid-row: 1;
+        min-width: 0;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        min-height: 60px;
+        border-bottom: 0.5px solid var(--line);
+        padding: 12px 16px;
+        container-type: inline-size;
+      }
+      .tabs {
+        display: none;
+        flex: 0 0 auto;
+        align-items: center;
+        gap: 2px;
+        border-radius: 8px;
+        background: #ededed;
+        padding: 2px;
+      }
+      .panel.aux-open.compact .tabs {
+        display: flex;
+      }
+      .tab {
+        border: 0;
+        border-radius: 6px;
+        background: transparent;
+        color: #525252;
+        cursor: pointer;
+        font-size: 12px;
+        font-weight: 600;
+        line-height: 1;
+        padding: 8px 10px;
+        white-space: nowrap;
+      }
+      .tab:hover {
+        color: var(--ink);
+      }
+      .tab.is-active {
+        background: #fff;
+        color: var(--ink);
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+      }
+      .title-row {
+        min-width: 0;
+        flex: 1 1 auto;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        overflow: hidden;
+      }
+      .panel.aux-open.compact .title-row {
+        display: none;
+      }
+      .title {
+        min-width: 0;
+        font-size: 16px;
+        font-weight: 700;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .badge {
+        flex: 0 0 auto;
+        font-size: 11px;
+        font-weight: 600;
+        color: #b25f00;
+        background: #fff4e5;
+        padding: 2px 8px;
+        border-radius: 999px;
+        white-space: nowrap;
+      }
+      @container (max-width: 380px) {
+        .head .badge {
+          display: none;
+        }
+      }
+      .actions {
+        position: relative;
+        flex: 0 0 auto;
+        margin-left: auto;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .act {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        height: 32px;
+        border: 0;
+        border-radius: 8px;
+        background: transparent;
+        color: var(--ink);
+        cursor: pointer;
+        font: inherit;
+        font-size: 13px;
+        font-weight: 600;
+        padding: 0 10px;
+      }
+      .act:hover {
+        background: #f1f1f1;
+      }
+      .act-icon {
+        width: 32px;
+        padding: 0;
+      }
+      .act svg {
+        width: 18px;
+        height: 18px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      .kebab {
+        display: none;
+        width: 32px;
+        height: 32px;
+        align-items: center;
+        justify-content: center;
+        border: 0;
+        border-radius: 8px;
+        background: transparent;
+        cursor: pointer;
+      }
+      .kebab:hover {
+        background: #f1f1f1;
+      }
+      .kebab svg {
+        width: 18px;
+        height: 18px;
+        fill: currentColor;
+      }
+      .head.collapsed .act-copy,
+      .head.collapsed .act-alert {
+        display: none;
+      }
+      .head.collapsed .kebab {
+        display: inline-flex;
+      }
+      /* na aba auxiliar, as ações da primária não aparecem */
+      .head.aux-actions .act-copy,
+      .head.aux-actions .act-alert,
+      .head.aux-actions .kebab {
+        display: none;
+      }
+      .kebab-menu {
+        position: absolute;
+        top: calc(100% + 6px);
+        right: 0;
+        min-width: 230px;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        background: #fff;
+        border: 0.5px solid var(--line);
+        border-radius: 12px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+        padding: 6px;
+        z-index: 40;
+      }
+      .kebab-menu[hidden] {
+        display: none;
+      }
+      .kebab-item {
+        display: flex;
+        align-items: center;
+        width: 100%;
+        text-align: left;
+        border: 0;
+        border-radius: 8px;
+        background: transparent;
+        color: var(--ink);
+        font: inherit;
+        font-size: 13px;
+        padding: 9px 10px;
+        cursor: pointer;
+      }
+      .kebab-item:hover {
+        background: #f1f1f1;
+      }
+
+      /* select de documento — entra no header (aba auxiliar) com a mesma altura das abas */
+      .select-wrap {
+        position: relative;
+        min-width: 0;
+        height: 36px;
+        display: flex;
+        align-items: center;
+        border-radius: 8px;
+        background: #ededed;
+        color: var(--ink);
+      }
+      .head.aux-actions .select-wrap {
+        flex: 1 1 auto;
+        height: 32px;
+      }
+      .doc-select {
+        width: 100%;
+        height: 100%;
+        min-width: 0;
+        appearance: none;
+        border: 0;
+        border-radius: inherit;
+        background: transparent;
+        color: inherit;
+        cursor: pointer;
+        font: inherit;
+        font-size: 14px;
+        font-weight: 600;
+        padding: 0 32px 0 12px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .select-wrap .chev {
+        position: absolute;
+        right: 10px;
+        pointer-events: none;
+      }
+
+      /* ---- Body (sidebar primária) ---- */
+      .body {
+        grid-column: 1;
+        grid-row: 2;
+        min-height: 0;
+        overflow: auto;
+        padding: 18px 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+      .panel.aux-open.compact:not(.tab-aux) .aux,
+      .panel.aux-open.compact.tab-aux .body {
+        display: none;
+      }
+      .objeto {
+        border: 0.5px solid var(--line);
+        border-radius: 12px;
+        padding: 16px;
+      }
+      .objeto h3 {
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--muted);
+      }
+      .objeto p {
+        margin-top: 6px;
+        font-size: 14px;
+        line-height: 1.5;
+      }
+      .acc {
+        border: 0.5px solid var(--line);
+        border-radius: 12px;
+        padding: 14px 16px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+      .acc .bar.t {
+        max-width: 200px;
+      }
+      .acc .chev2 {
+        flex: 0 0 auto;
+        color: #9a9a9a;
+      }
+
+      /* ---- Sidebar auxiliar (Arquivos da licitação) ---- */
+      .aux {
+        position: relative;
+        grid-column: 2;
+        grid-row: 1 / span 2;
+        min-width: 0;
+        min-height: 0;
+        display: grid;
+        grid-template-rows: auto 1fr;
+        border-left: 0.5px solid var(--line);
+        background: #fff;
+      }
+      .panel.aux-open.compact .aux {
+        grid-column: 1;
+        grid-row: 2;
+        border-left: 0;
+      }
+      .panel:not(.aux-open) .aux {
+        display: none;
+      }
+      .aux-head {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-height: 60px;
+        border-bottom: 0.5px solid var(--line);
+        padding: 12px 16px;
+      }
+      .panel.aux-open.compact .aux-head {
+        display: none;
+      }
+      .aux-actions {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .aux-body {
+        min-height: 0;
+        overflow: auto;
+        padding: 18px 20px;
+      }
+      .aux-body h4 {
+        font-size: 13px;
+        font-weight: 700;
+        margin-bottom: 10px;
+      }
+      .aux-body p {
+        font-size: 13px;
+        line-height: 1.6;
+        color: #333;
+        margin-bottom: 12px;
+      }
+      .edital-divider {
+        position: absolute;
+        top: 0;
+        left: -4px;
+        width: 11px;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        border: 0;
+        background: transparent;
+        cursor: ew-resize;
+        z-index: 25;
+      }
+      .edital-divider::before {
+        content: "";
+        position: absolute;
+        left: 4px;
+        top: 0;
+        width: 2px;
+        height: 100%;
+        background: transparent;
+        transition: background 0.15s ease;
+      }
+      .edital-divider:hover::before,
+      .app.dragging .edital-divider::before {
+        background: var(--accent);
+      }
+      .panel.compact .edital-divider {
+        display: none;
+      }
+
+      .hint {
+        position: fixed;
+        left: 50%;
+        bottom: 14px;
+        transform: translateX(-50%);
+        z-index: 50;
+        background: rgba(26, 26, 26, 0.9);
+        color: #fff;
+        font-size: 12px;
+        padding: 8px 14px;
+        border-radius: 999px;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 200ms ease;
+      }
+      .hint.show {
+        opacity: 1;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app" data-app>
+      <!-- ===== Sidebar do menu ===== -->
+      <aside class="menu" data-menu aria-label="Menu lateral">
+        <button class="menu-toggle" type="button" data-menu-toggle aria-label="Expandir menu">
+          <svg viewBox="0 0 24 24"><path d="M3 6h18" /><path d="M3 12h18" /><path d="M3 18h18" /></svg>
+        </button>
+        <nav style="display: flex; flex-direction: column; gap: 2px">
+          <a class="menu-item is-active">
+            <span class="menu-ico"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /></svg></span>
+            <span class="menu-label">Licitações</span>
+          </a>
+          <a class="menu-item">
+            <span class="menu-ico"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4" /><path d="M8 2v4" /><path d="M3 10h18" /></svg></span>
+            <span class="menu-label">Calendário</span>
+          </a>
+          <a class="menu-item">
+            <span class="menu-ico"><svg viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" /><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" /></svg></span>
+            <span class="menu-label">Notificações</span>
+          </a>
+          <a class="menu-item">
+            <span class="menu-ico"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path d="M14 2v6h6" /></svg></span>
+            <span class="menu-label">Documentos</span>
+          </a>
+        </nav>
+      </aside>
+
+      <!-- ===== Conteúdo principal ===== -->
+      <main class="content">
+        <div class="content-card">
+          <header class="content-head">
+            <div>
+              <h1>Analisar resumo extraído</h1>
+              <p>Abra o workspace para visualizar o resumo na sidebar acoplada.</p>
+            </div>
+            <button class="btn btn--primary" type="button" data-open-ws>Abrir sidebar</button>
+          </header>
+          <div class="skel-list" aria-hidden="true">
+            <!-- linhas de skeleton (placeholder de conteúdo) -->
+          </div>
+        </div>
+      </main>
+
+      <!-- ===== Workspace (multitasking) ===== -->
+      <aside class="workspace" data-workspace aria-label="Workspace da licitação">
+        <button class="resize-handle" type="button" data-resize-outer aria-label="Redimensionar workspace"></button>
+        <div class="panel" data-panel>
+          <header class="head" data-head>
+            <div class="tabs" data-tabs role="tablist">
+              <button class="tab is-active" type="button" data-tab="primary">Resumo</button>
+              <button class="tab" type="button" data-tab="aux">Arquivos da licitação</button>
+            </div>
+            <div class="title-row">
+              <span class="title">Resumo</span>
+              <span class="badge">Versão beta</span>
+            </div>
+            <div class="actions" data-actions>
+              <button class="act act-copy" type="button" data-copy>Copiar conteúdo</button>
+              <button class="act act-icon act-alert" type="button" aria-label="Histórico de divergências">
+                <svg viewBox="0 0 24 24"><path d="M12 3 2.7 20h18.6L12 3Z" /><path d="M12 9v5" /><path d="M12 17.2h.01" /></svg>
+              </button>
+              <button class="kebab" type="button" data-kebab aria-label="Mais ações">
+                <svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="2" /><circle cx="12" cy="12" r="2" /><circle cx="12" cy="19" r="2" /></svg>
+              </button>
+              <button class="act act-icon act-close" type="button" data-close aria-label="Fechar">
+                <svg viewBox="0 0 24 24"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
+              </button>
+              <div class="kebab-menu" data-kebab-menu hidden>
+                <button class="kebab-item" type="button" data-copy>Copiar conteúdo</button>
+                <button class="kebab-item" type="button">Histórico de divergências</button>
+              </div>
+            </div>
+          </header>
+
+          <div class="body">
+            <article class="objeto">
+              <h3>Objeto</h3>
+              <p>
+                Aquisição de licenças de software, incluindo atualização e suporte técnico por 36 meses,
+                conforme condições do edital e seus anexos.
+              </p>
+            </article>
+            <button class="btn" type="button" data-open-aux>Abrir Arquivos da licitação →</button>
+            <div class="acc"><span class="bar t"></span><span class="chev2">▾</span></div>
+            <div class="acc"><span class="bar t"></span><span class="chev2">▾</span></div>
+            <div class="acc"><span class="bar t"></span><span class="chev2">▾</span></div>
+            <div class="acc"><span class="bar t"></span><span class="chev2">▾</span></div>
+            <div class="acc"><span class="bar t"></span><span class="chev2">▾</span></div>
+            <div class="acc"><span class="bar t"></span><span class="chev2">▾</span></div>
+          </div>
+
+          <section class="aux" data-aux>
+            <button class="edital-divider" type="button" data-divider aria-label="Redimensionar largura dos Arquivos"></button>
+            <header class="aux-head" data-aux-head>
+              <label class="select-wrap" data-select-wrap>
+                <select class="doc-select" data-doc aria-label="Documento aberto">
+                  <option>Edital 15/2023</option>
+                  <option>Termo de Referência</option>
+                  <option>Estudo Técnico Preliminar</option>
+                  <option>Minuta de Contrato</option>
+                  <option>Proposta da contratada</option>
+                </select>
+                <span class="chev">▾</span>
+              </label>
+              <div class="aux-actions" data-aux-actions>
+                <button class="act act-icon" type="button" data-download aria-label="Baixar arquivo">
+                  <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><path d="M7 10l5 5 5-5" /><path d="M12 15V3" /></svg>
+                </button>
+                <button class="act act-icon" type="button" data-close-aux aria-label="Fechar arquivos">
+                  <svg viewBox="0 0 24 24"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
+                </button>
+              </div>
+            </header>
+            <div class="aux-body">
+              <h4>PODER PÚBLICO — EDITAL DE PREGÃO ELETRÔNICO Nº 15/2023</h4>
+              <p>
+                Objeto: aquisição de licenças de software, incluindo atualização e serviço de suporte
+                técnico por 36 meses, conforme condições do edital, do termo de referência e de seus anexos.
+              </p>
+              <p>
+                O certame será realizado em ambiente eletrônico, observadas as regras da legislação aplicável
+                e os princípios da legalidade, impessoalidade, publicidade, eficiência e julgamento objetivo.
+              </p>
+              <p>
+                A condução do procedimento observará a vinculação ao instrumento convocatório, cabendo às
+                licitantes examinar cuidadosamente todas as condições de participação, os prazos, as exigências
+                de habilitação, as regras de julgamento e os anexos que integram a contratação.
+              </p>
+              <p>
+                Os documentos apresentados no sistema eletrônico deverão refletir fielmente as condições
+                ofertadas, sendo de responsabilidade exclusiva da licitante a veracidade das informações e a
+                compatibilidade da proposta com o objeto descrito.
+              </p>
+              <p>
+                Durante a sessão pública, a Administração poderá solicitar esclarecimentos, promover
+                diligências e registrar em ata os atos relevantes, sempre com o objetivo de preservar a
+                competitividade e a seleção da proposta mais vantajosa.
+              </p>
+            </div>
+          </section>
+        </div>
+      </aside>
+    </div>
+
+    <div class="hint" data-hint></div>
+
+    <script>
+      (function () {
+        // ===== constantes do padrão Multitasking (px, salvo indicado) =====
+        var MENU_OPEN = 280, MENU_CLOSED = 52;
+        var MIN_CONTENT = 640;     // reserva do conteúdo principal
+        var MIN_AUX = 480;         // mínimo do workspace no modo primária+auxiliar
+        var MIN_PRIMARY = 320;     // mínimo do workspace no modo só primária
+        var MIN_COL = 320;         // mínimo de cada coluna interna (divisória)
+        var MAX_PRIMARY_FRAC = 0.45;
+        var DEF_PRIMARY = 0.39, DEF_SOURCE = 0.70;
+        var TABS = 760;
+
+        var app = document.querySelector("[data-app]");
+        var menu = document.querySelector("[data-menu]");
+        var menuToggle = document.querySelector("[data-menu-toggle]");
+        var workspace = document.querySelector("[data-workspace]");
+        var panel = document.querySelector("[data-panel]");
+        var head = document.querySelector("[data-head]");
+        var actions = document.querySelector("[data-actions]");
+        var auxEl = document.querySelector("[data-aux]");
+        var auxHead = document.querySelector("[data-aux-head]");
+        var auxActions = document.querySelector("[data-aux-actions]");
+        var selectWrap = document.querySelector("[data-select-wrap]");
+        var downloadBtn = document.querySelector("[data-download]");
+        var closeBtn = document.querySelector("[data-close]");
+        var kebab = document.querySelector("[data-kebab]");
+        var kebabMenu = document.querySelector("[data-kebab-menu]");
+        var hint = document.querySelector("[data-hint]");
+
+        // ===== estado =====
+        var wsOpen = false, auxOpen = false, activeTab = "primary";
+        var userPrimaryW = null, userSourceW = null, userEditalW = null;
+
+        // ===== skeleton no conteúdo principal =====
+        var skel = document.querySelector(".skel-list");
+        for (var i = 0; i < 12; i++) {
+          skel.insertAdjacentHTML(
+            "beforeend",
+            '<div class="skel-row"><div class="skel-main"><span class="bar t"></span><span class="bar s"></span></div>' +
+              '<div class="skel-meta"><span class="bar v"></span><span class="bar b"></span></div></div>'
+          );
+        }
+
+        function menuWidth() { return menu.classList.contains("is-open") ? MENU_OPEN : MENU_CLOSED; }
+        function avail() { return window.innerWidth - menuWidth(); }
+        function clampN(v, lo, hi) { return Math.round(Math.min(Math.max(v, lo), Math.max(lo, hi))); }
+        function clampPrimary(w) { return clampN(w, MIN_PRIMARY, Math.min(avail() * MAX_PRIMARY_FRAC, avail() - MIN_CONTENT)); }
+        function clampSource(w) { return clampN(w, MIN_AUX, avail() - MIN_CONTENT); }
+
+        function showHint(msg) {
+          hint.textContent = msg;
+          hint.classList.add("show");
+          clearTimeout(showHint._t);
+          showHint._t = setTimeout(function () { hint.classList.remove("show"); }, 1800);
+        }
+
+        // ===== layout principal =====
+        function apply() {
+          app.style.setProperty("--menu-w", menuWidth() + "px");
+          if (!wsOpen) {
+            app.classList.remove("ws-open");
+            return;
+          }
+          app.classList.add("ws-open");
+
+          var wsW;
+          if (auxOpen) {
+            wsW = clampSource(userSourceW != null ? userSourceW : avail() * DEF_SOURCE);
+          } else {
+            wsW = clampPrimary(userPrimaryW != null ? userPrimaryW : avail() * DEF_PRIMARY);
+          }
+          app.style.setProperty("--ws-w", wsW + "px");
+
+          var compact = auxOpen && wsW < TABS;
+          panel.classList.toggle("aux-open", auxOpen);
+          panel.classList.toggle("compact", compact);
+          panel.classList.toggle("tab-aux", compact && activeTab === "aux");
+
+          // largura própria da auxiliar (divisória) — só no lado a lado
+          if (auxOpen && !compact && userEditalW != null) {
+            var emax = Math.max(MIN_COL, wsW - MIN_COL);
+            app.style.setProperty("--edital-w", clampN(userEditalW, MIN_COL, emax) + "px");
+          } else {
+            app.style.removeProperty("--edital-w");
+          }
+
+          syncTabs(compact);
+          syncHeader(compact);
+        }
+
+        function syncTabs(compact) {
+          panel.querySelectorAll("[data-tab]").forEach(function (t) {
+            t.classList.toggle("is-active", t.dataset.tab === activeTab);
+          });
+        }
+
+        // move o seletor + download para o header (aba auxiliar compacta) e devolve fora dela
+        function syncHeader(compact) {
+          var auxInHeader = compact && activeTab === "aux";
+          head.classList.toggle("aux-actions", auxInHeader);
+          if (auxInHeader) {
+            var tabs = head.querySelector("[data-tabs]");
+            if (selectWrap.parentElement !== head) tabs.after(selectWrap);
+            if (downloadBtn.parentElement !== actions) actions.insertBefore(downloadBtn, closeBtn);
+          } else {
+            if (selectWrap.parentElement !== auxHead) auxHead.insertBefore(selectWrap, auxHead.firstChild);
+            if (downloadBtn.parentElement !== auxActions) auxActions.insertBefore(downloadBtn, auxActions.firstChild);
+          }
+          syncOverflow();
+        }
+
+        // colapsa Copiar/Histórico no "..." só quando o header não comporta inline
+        function syncOverflow() {
+          if (head.classList.contains("aux-actions")) { head.classList.remove("collapsed"); return; }
+          head.classList.remove("collapsed");
+          void head.offsetWidth;
+          if (head.scrollWidth > head.clientWidth + 1) head.classList.add("collapsed");
+        }
+
+        // ===== ações =====
+        function openWs() { wsOpen = true; auxOpen = false; activeTab = "primary"; apply(); }
+        function closeWs() { wsOpen = false; auxOpen = false; apply(); }
+        function openAux() { auxOpen = true; activeTab = "aux"; apply(); }
+        function closeAux() { auxOpen = false; activeTab = "primary"; apply(); }
+
+        menuToggle.addEventListener("click", function () { menu.classList.toggle("is-open"); apply(); });
+        document.querySelector("[data-open-ws]").addEventListener("click", function () { wsOpen ? closeWs() : openWs(); });
+        document.querySelector("[data-open-aux]").addEventListener("click", openAux);
+        document.querySelector("[data-close-aux]").addEventListener("click", closeAux);
+
+        // fechar (X) contextual
+        closeBtn.addEventListener("click", function () {
+          var compact = panel.classList.contains("compact");
+          if (auxOpen && compact && activeTab === "aux") closeAux();
+          else closeWs();
+        });
+
+        // abas
+        panel.querySelectorAll("[data-tab]").forEach(function (t) {
+          t.addEventListener("click", function () { activeTab = t.dataset.tab; apply(); });
+        });
+
+        // copiar (placeholder)
+        document.querySelectorAll("[data-copy]").forEach(function (b) {
+          b.addEventListener("click", function () { kebabMenu.hidden = true; showHint("Conteúdo copiado!"); });
+        });
+
+        // kebab
+        kebab.addEventListener("click", function (e) { e.stopPropagation(); kebabMenu.hidden = !kebabMenu.hidden; });
+        kebabMenu.addEventListener("click", function () { kebabMenu.hidden = true; });
+        document.addEventListener("click", function (e) {
+          if (!kebabMenu.hidden && !kebabMenu.contains(e.target) && !kebab.contains(e.target)) kebabMenu.hidden = true;
+        });
+
+        // ===== resize: alça externa (tamanho do conjunto) =====
+        var dragOuter = false, dragDivider = false;
+        var outerHandle = document.querySelector("[data-resize-outer]");
+        var divider = document.querySelector("[data-divider]");
+
+        outerHandle.addEventListener("pointerdown", function (e) {
+          e.preventDefault();
+          dragOuter = true;
+          app.classList.add("dragging");
+          outerHandle.setPointerCapture && outerHandle.setPointerCapture(e.pointerId);
+        });
+        divider.addEventListener("pointerdown", function (e) {
+          e.preventDefault();
+          dragDivider = true;
+          app.classList.add("dragging");
+          divider.setPointerCapture && divider.setPointerCapture(e.pointerId);
+        });
+        document.addEventListener("pointermove", function (e) {
+          if (dragOuter) {
+            var desired = window.innerWidth - e.clientX;
+            if (auxOpen) userSourceW = clampSource(desired);
+            else userPrimaryW = clampPrimary(desired);
+            apply();
+          } else if (dragDivider) {
+            userEditalW = window.innerWidth - e.clientX;
+            apply();
+          }
+        });
+        document.addEventListener("pointerup", function () {
+          if (dragOuter || dragDivider) { dragOuter = dragDivider = false; app.classList.remove("dragging"); }
+        });
+
+        window.addEventListener("resize", apply);
+        apply();
+      })();
+    </script>
+  </body>
+</html>
