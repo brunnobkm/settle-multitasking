@@ -1,10 +1,14 @@
 # Multitasking — protótipo
 
-Protótipo **self-contained** (um único `index.html`, sem dependências) do padrão **Multitasking**:
-duas sidebars acopladas (uma **primária** + uma **auxiliar**) que dividem a tela com o menu e o
-conteúdo principal, de forma responsiva.
+Protótipo do padrão **Multitasking**: duas sidebars acopladas (uma **primária** + uma **auxiliar**)
+que dividem a tela com o menu e o conteúdo principal, de forma responsiva.
 
 **Demo:** https://brunnobkm.github.io/settle-multitasking/
+
+## Arquivos
+- `index.html` — a tela do protótipo (a lógica do Multitasking — espaço útil, modos, resize, header,
+  fechar — está embutida no próprio HTML; a simulação do menu também).
+- `styles.css`, `sheet.js` — estilos e interações de base reaproveitados do protótipo Settle.
 
 ## O que dá para testar
 - **Abrir sidebar** → abre o workspace (Resumo).
@@ -20,4 +24,10 @@ conteúdo principal, de forma responsiva.
 - Resize fluido (transição desligada no arraste), memória por modo, re-clamp ao mudar o espaço.
 - Header responsivo: título some nas abas, ações por aba, colapso no `…` só por overflow real.
 
-*Conteúdo (Resumo/Arquivos) é placeholder — este protótipo demonstra o padrão de layout, não dados reais.*
+## Rodar localmente
+```bash
+python3 -m http.server 4610
+# abra http://localhost:4610/index.html
+```
+
+*Protótipo — o conteúdo (Resumo/Arquivos) é de exemplo, não dados reais.*
